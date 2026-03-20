@@ -30,7 +30,7 @@ export function Providers({
       >
         <InsforgeBrowserProvider
           client={insforge}
-          afterSignInUrl="/"
+          afterSignInUrl="/dashboard"
           initialState={initialState}
         >
           {children}

@@ -1,0 +1,108 @@
+# WBC HUB — CURSOR RULES
+# Worship Builders Collective | Erskine J. Currie | March 2026
+
+## PROJECT IDENTITY
+App name: WBC Hub
+Ministry: Worship Builders Collective (a ministry of The Light Church, 501c3)
+Purpose: Internal ministry platform for church engagement, worship team training,
+         certification management, worship tools, and donor impact reporting.
+Founder: Erskine J. Currie
+
+## TECH STACK (STRICT — do not suggest alternatives)
+- Framework:    Next.js App Router (`src/` directory, TypeScript strict mode; repo currently Next 16.x)
+- Styling:      Tailwind CSS + shadcn/ui (do NOT use inline styles)
+- Auth:         Insforge (`@insforge/nextjs`, `@insforge/sdk`) — role stored in user profile / app metadata (see USER ROLES)
+- Database:     Insforge-managed PostgreSQL (PostgREST) with Row Level Security on ALL tables
+- Insforge SDK: `@insforge/sdk` for database/storage/functions; `@insforge/nextjs` for auth session, middleware, cookies (`/api/auth`)
+- State:        Zustand for global state, TanStack Query for server state
+- Forms:        React Hook Form + Zod (always validate with Zod schema first)
+- Charts:       Recharts only
+- Rich text:    TipTap only
+- PDF:          @react-pdf/renderer only
+- Icons:        lucide-react only
+- Dates:        date-fns only
+
+## USER ROLES (5 roles — enforce in every query and component)
+- admin:           Full access. Erskine J. Currie.
+- worship_builder: Certified trainer. Sees only assigned churches.
+- apprentice:      Trainee. Training modules + read-only church access.
+- church_leader:   Partner church contact. Own church data + song library only.
+- donor:           Read-only donor portal. Published impact reports only.
+
+## INSFORGE DATABASE RULES (CRITICAL)
+- ALL privileged database access MUST use the server Insforge client in Server Components, Route Handlers, or Server Actions (`createServerInsforge()` + `auth()`).
+- NEVER perform privileged reads/writes from Client Components — use API routes or Server Actions with role checks.
+- ALWAYS check user role before any write operation.
+- RLS is active on all tables — but always add role checks in application code too (defense in depth).
+- Server: `createServerInsforge` from `@/lib/insforge/server` and `auth` from `@insforge/nextjs/server`.
+- Client: `insforge` from `@/lib/insforge/client` only for anonymous/public reads; authenticated session flows through `@insforge/nextjs` (provider + cookie sync).
+
+## INSFORGE AUTH RULES
+- Role is stored in: Insforge user profile / metadata (e.g. `profile.role` or a dedicated column on `profiles` — keep in sync with dashboard schema).
+- Get role server-side: `const { user, userId } = await auth()` then derive role from `user` / joined `profiles` row.
+- Get role client-side: `const { user } = useUser()` from `@insforge/nextjs` then read from `user?.profile` (or your mapped field).
+- Protect routes in `src/middleware.ts` using `InsforgeMiddleware` from `@insforge/nextjs/middleware`; public routes listed in `src/lib/insforge/middleware.ts` (`insforgePublicRoutes`).
+- Webhook at `/api/webhooks/insforge` handles platform events (e.g. user provisioning) to sync `profiles` and related rows.
+
+## CODE STYLE RULES
+- Always use TypeScript — never use 'any' type
+- Always use named exports for components (not default exports except pages)
+- Server Components by default — add 'use client' only when needed
+- Never put business logic in page.tsx — extract to components or hooks
+- Always handle loading states (use Suspense + skeleton components)
+- Always handle error states (use error.tsx + try/catch in server actions)
+- Use the cn() utility from @/lib/utils for conditional classNames
+- All form submissions use React Hook Form + Zod schema validation
+- No console.log in production code — use proper error handling
+
+## COMPONENT RULES
+- All shared components go in src/components/shared/
+- Module-specific components go in src/components/[module]/
+- shadcn/ui components go in src/components/ui/ (do not modify shadcn files directly)
+- Page-level layout uses the (dashboard)/layout.tsx shell with Sidebar + Header
+- All pages use the <PageHeader> component for consistent titles
+- Use <DataTable> for all tabular data (not raw HTML tables)
+- Use <StatusBadge> for all status/phase/role badges
+- Use <ConfirmModal> for all destructive or irreversible actions
+
+## NAMING CONVENTIONS
+- Files:      PascalCase for components (ChurchCard.tsx), camelCase for utils (formatDate.ts)
+- Variables:  camelCase
+- Types:      PascalCase (type Church = {...})
+- DB tables:  snake_case (matches Postgres / Insforge)
+- Routes:     kebab-case (/church-engagement)
+- Env vars:   NEXT_PUBLIC_ prefix for client-safe, no prefix for server-only
+
+## AI AGENTS (4 Phase-1 agents — all in src/app/api/ai/)
+- /api/ai/assess     — Church Assessment Summarizer (POST: assessment data)
+- /api/ai/theology   — Song Theology Reviewer (POST: song title + lyrics_summary + scripture_refs)
+- /api/ai/reflect    — Training Reflection Guide (POST: lesson title + content)
+- /api/ai/narrator   — Donor Impact Narrator (POST: metrics + story titles)
+All agents: model = claude-sonnet-4-20250514 | max_tokens = 600 | require auth
+All agents: human must approve output before it is saved to database
+
+## DATABASE TABLES (14 total — see full schema in WBC Hub Master Build Reference)
+profiles, churches, engagements, assessments, engagement_updates,
+courses, lessons, user_progress, certification_records,
+songs, song_sets, song_set_items, impact_metrics, impact_stories
+
+## DESIGN SYSTEM
+- Primary background:  #F9FAFB (gray-50)
+- Sidebar background:  #1F2937 (charcoal)
+- Accent color:        #B8860B (muted gold) — use sparingly
+- Text primary:        #111827 (gray-900)
+- Text muted:          #6B7280 (gray-500)
+- Border:              #E5E7EB (gray-200)
+- Never use bright/neon colors. Pastoral and trustworthy always.
+
+## WHAT NOT TO DO
+- Do NOT use Pages Router — App Router only
+- Do NOT use getServerSideProps or getStaticProps
+- Do NOT use Prisma — Insforge JS SDK only
+- Do NOT use NextAuth — Insforge auth only
+- Do NOT use Redux — Zustand only
+- Do NOT use axios — fetch() or Insforge SDK only
+- Do NOT add libraries not in the approved stack without asking
+- Do NOT create mock data for production — use real Insforge database queries
+- Do NOT skip loading and error states
+- Do NOT write raw SQL strings in components — use Insforge database query builder (`.from().select()` / `.insert()` / etc.)

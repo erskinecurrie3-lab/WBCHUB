@@ -1,0 +1,1 @@
+-- Dev seed data for Insforge / Postgres (run via dashboard SQL or CLI).
